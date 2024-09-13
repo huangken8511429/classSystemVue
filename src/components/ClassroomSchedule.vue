@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold mb-4">教室排課表</h1>
 
     <div class="flex">
-      <div class="w-1/6 flex flex-col space-y-2 ">
+      <div class="w-1/6 flex flex-col space-y-2">
         <button @click="currentView = 'schedule'"
           :class="['w-32 p-2 border rounded', currentView === 'schedule' ? 'bg-blue-500 text-white' : 'bg-gray-200']">
           排課區
@@ -94,7 +94,6 @@
       </div>
     </div>
 
-
     <!-- 新增排課模態框 -->
     <div v-if="showAddScheduleModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
       <div class="bg-white p-4 rounded shadow-lg">
@@ -102,9 +101,10 @@
         <form @submit.prevent="checkSchedule">
           <div class="mb-4">
             <label class="block mb-2" for="courseSelect">選擇課程</label>
-            <select v-model="selectedCourse" class="p-2 border rounded w-full">
-              <option :value="course.id" v-for="course in uniqueCourses" :key="course.id">{{ course }}</option>
-            </select>
+            <SearchableDropdown
+              :courses="courses"
+              @select="handleCourseSelect"
+            />
           </div>
           <div class="mb-4">
             <label class="block mb-2" for="dayOfWeek">選擇星期</label>
@@ -113,12 +113,8 @@
             </select>
           </div>
           <div class="mb-4">
-            <label class="block mb-2" for="startTime">開始時間</label>
-            <input v-model="startTime" id="startTime" type="time" class="p-2 border rounded w-full" />
-          </div>
-          <div class="mb-4">
-            <label class="block mb-2" for="endTime">結束時間</label>
-            <input v-model="endTime" id="endTime" type="time" class="p-2 border rounded w-full" />
+            <label class="block mb-2">選擇時間</label>
+            <TimeRangePicker @select-time-range="handleTimeRangeSelect" />
           </div>
           <div class="flex justify-end space-x-2">
             <button type="button" @click="showAddScheduleModal = false" class="p-2 border rounded bg-gray-200">
@@ -160,7 +156,6 @@
       </div>
     </div>
 
-
     <!-- 刪除確認對話框 -->
     <div v-if="showDeleteConfirmDialog"
       class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
@@ -178,31 +173,18 @@
       </div>
     </div>
   </div>
-
-  <!-- 搜索下拉菜单 -->
-  <div class="relative">
-    <input v-model="searchTerm" @focus="isDropdownOpen = true" @blur="closeDropdown" class="p-2 border rounded w-full"
-      placeholder="搜尋課程" />
-    <div v-if="isDropdownOpen"
-      class="absolute mt-1 w-full bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto z-10">
-      <ul>
-        <li v-for="course in filteredCourses" :key="course.id" @click="selectCourse(course)"
-          class="p-2 cursor-pointer hover:bg-gray-100">
-          {{ course.name }}
-        </li>
-        <li v-if="filteredCourses.length === 0" class="p-2 text-gray-500">沒有找到課程</li>
-      </ul>
-    </div>
-  </div>
 </template>
 
 
 
 <script>
 import { ref, onMounted, computed, watch } from 'vue';
-
+import SearchableDropdown from './SearchableDropdown.vue';
 export default {
   name: 'ClassroomSchedule',
+  components: {
+    SearchableDropdown,
+  },
   setup() {
     const scheduleData = ref([]);
     const courseData = ref([]);
@@ -222,11 +204,11 @@ export default {
     const courses = ref([]); // Initialize with course data
     const searchTerm = ref('');
     const isDropdownOpen = ref(false);
-
+ 
     // 获取课程数据
     const fetchCourses = async () => {
       try {
-        const response = await fetch(`${apiUrl}/courses`);
+        const response = await fetch(`${apiUrl}/lessons`);
         courses.value = await response.json();
       } catch (error) {
         console.error('Error fetching courses:', error);
@@ -439,6 +421,10 @@ export default {
       }
     };
 
+    const handleCourseSelect = (course) => {
+    selectedCourse.value = course.id;
+  };
+
     const uniqueClubs = computed(() =>
       [...new Set(scheduleData.value.map(item => item.clubName))]
     );
@@ -469,7 +455,8 @@ export default {
       checkSchedule,
       selectCourse,
       closeDropdown,
-      filteredLessons
+      filteredLessons,
+      handleCourseSelect
     };
   }
 };
