@@ -96,46 +96,57 @@
 
     <!-- 新增排課模態框 -->
     <div v-if="showAddScheduleModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
-    <div class="bg-white p-6 rounded shadow-lg max-w-lg w-full">
-      <h2 class="text-xl font-bold mb-4">新增排課</h2>
-      
-      <form @submit.prevent="checkSchedule" novalidate>
-        <div class="mb-4">
-          <label class="block mb-2" for="courseSelect">選擇課程</label>
-          <SearchableDropdown :courses="courses" @select="handleCourseSelect" />
-        </div>
-        <div class="mb-4">
-          <label class="block mb-2" for="dayOfWeek">選擇星期</label>
-          <select v-model="selectedDay" id="dayOfWeek" class="p-2 border rounded w-full" required>
-            <option value="" disabled>請選擇</option>
-            <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
-          </select>
-        </div>
-        <div class="mb-4">
-          <label class="block mb-2">選擇課程開始時間</label>
-          <TimePicker v-model="selectedTime" format="HH:mm:ss" />
-        </div>
-        <div class="mb-4">
-          <label class="block mb-2">選擇課程結束時間</label>
-          <TimePicker v-model="selectedTime" format="HH:mm:ss" />
-        </div>
-        <div class="flex justify-end space-x-2">
-          <button type="button" @click="showAddScheduleModal = false" class="p-2 border rounded bg-gray-200">
-            取消
-          </button>
-          <button type="submit" class="p-2 border rounded bg-blue-500 text-white">
-            確定
-          </button>
-        </div>
-      </form>
+      <div class="bg-white p-6 rounded shadow-lg max-w-lg w-full">
+        <h2 class="text-xl font-bold mb-4">新增排課</h2>
+
+        <form @submit.prevent="checkSchedule" novalidate>
+          <div class="mb-4">
+            <label class="block mb-2" for="courseSelect">選擇課程</label>
+            <SearchableDropdown :courses="courses" @select="handleCourseSelect" />
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2" for="classrooms">選擇教室</label>
+            <select v-model="selectClassroom" id="classrooms" class="p-2 border rounded w-full" required>
+              <option value="" disabled>請選擇</option>
+              <option v-for="classroom in uniqueClassrooms" :key="classroom" :value="classroom">{{ classroom }}</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2" for="dayOfWeek">選擇星期</label>
+            <select v-model="selectedDay" id="dayOfWeek" class="p-2 border rounded w-full" required>
+              <option value="" disabled>請選擇</option>
+              <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2">選擇課程開始時間</label>
+            <TimePicker v-model="selectedStartTime" format="HH:mm" />
+          </div>
+          <div class="mb-4">
+            <label class="block mb-2">選擇課程結束時間</label>
+            <TimePicker v-model="selectedEndTime" format="HH:mm" />
+          </div>
+          <div class="flex justify-end space-x-2">
+            <button type="button" @click="showAddScheduleModal = false" class="p-2 border rounded bg-gray-200">
+              取消
+            </button>
+            <button type="submit" class="p-2 border rounded bg-blue-500 text-white">
+              確定
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
     <!-- 新增課程模態框 -->
     <div v-if="showAddCourseModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
       <div class="bg-white p-4 rounded shadow-lg">
         <h2 class="text-xl font-bold mb-4">新增課程</h2>
         <form @submit.prevent="addCourse">
+          <div class="mb-4">
+            <label class="block mb-2" for="courseName">教室名稱</label>
+            <input v-model="newCourse" id="courseName" type="text" class="p-2 border rounded w-full" />
+          </div>
           <div class="mb-4">
             <label class="block mb-2" for="courseName">課程名稱</label>
             <input v-model="newCourse" id="courseName" type="text" class="p-2 border rounded w-full" />
@@ -194,6 +205,14 @@ export default {
     const scheduleData = ref([]);
     const courseData = ref([]);
     const days = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const daysMap = new Map([
+      ['星期一', 'monday'],
+      ['星期二', 'tuesday'],
+      ['星期三', 'wednesday'],
+      ['星期四', 'thursday'],
+      ['星期五', 'friday'],
+      ['星期六', 'saturday']
+    ]);
     const filterText = ref('');
     const selectedClub = ref(null);
     const currentView = ref('schedule'); // 控制當前視圖
@@ -209,8 +228,10 @@ export default {
     const courses = ref([]); // Initialize with course data
     const searchTerm = ref('');
     const apiUrl = `${process.env.VUE_APP_API_URL}`;
+    const selectedStartTime = ref('');
+    const selectedEndTime = ref('');
+    const selectClassroom = ref('');
 
-    // 获取课程数据
     const fetchCourses = async () => {
       try {
         const response = await fetch(`${apiUrl}/lessons`);
@@ -220,7 +241,6 @@ export default {
       }
     };
 
-    // 过滤课程
     const filteredLessons = computed(() => {
       return courses.value.filter(course =>
         course.name.toLowerCase().includes(searchTerm.value.toLowerCase())
@@ -228,7 +248,6 @@ export default {
     });
 
 
-    // 组件挂载时获取课程数据
     onMounted(fetchCourses);
     const confirmDelete = (id, name) => {
       courseToDelete.value = { id, name };
@@ -236,16 +255,23 @@ export default {
     };
 
     const checkSchedule = async () => {
-      const isOverlapping = await checkTimeOverlap();
-      if (isOverlapping) {
-        const confirmed = window.confirm(`此时间(${selectedDay.value} ${startTime.value} - ${endTime.value}) 已经有课程。确认要排课吗？`);
+      const existingSchedules = await getExistingSchedules();
+      if (existingSchedules.length > 0) {
+        // 列出所有重疊課程的時間
+        let targetDay = daysMap.get(selectedDay.value)
+        const scheduleDetails = existingSchedules
+          .map(schedule => `${schedule[targetDay.toLowerCase()]} ${schedule.startTime} - ${schedule.endTime}`)
+          .join('\n');
+
+        const confirmed = window.confirm(
+          `${selectedDay.value} 裡已有課程:\n${scheduleDetails}\n確認要排課嗎？`
+        );
         if (confirmed) {
           addSchedule();
         }
       } else {
         addSchedule();
       }
-      
     };
 
     const deleteCourse = async () => {
@@ -260,12 +286,51 @@ export default {
       }
     };
 
-    const checkTimeOverlap = async () => {
+    const getExistingSchedules = async () => {
       try {
-        console.log(scheduleData.value)
-        const response = await fetch(`${apiUrl}/classRoomSchedule?dayOfWeek=${selectedDay.value}&startTime=${startTime.value}&endTime=${endTime.value}`);
-        const existingSchedules = await response.json();
-        return existingSchedules.length > 0;
+        let targetDay = daysMap.get(selectedDay.value)
+        // 过滤出不为 null 的排程
+        let existingSchedules = scheduleData.value
+          .filter(schedule => {
+            return schedule[targetDay.toLowerCase()] != null
+          })
+          .filter(schedule => {
+            return schedule.classRoomName === selectClassroom.value
+          })
+          .filter(schedule => {
+            let baseDate = new Date(1970, 0, 1);
+            let targetStartDate = new Date(baseDate);
+            let [hours, minutes] = selectedStartTime.value.split(':').map(Number);
+            targetStartDate.setHours(hours);
+            targetStartDate.setMinutes(minutes);
+            targetStartDate.setMinutes(0)
+
+            let targetEndDate = new Date(baseDate);
+            let [targetEndHours, targetEndMinutes] = selectedEndTime.value.split(':').map(Number);
+            targetEndDate.setHours(targetEndHours);
+            targetEndDate.setMinutes(targetEndMinutes);
+            targetEndDate.setMinutes(0)
+
+            let scheduleStartTime = schedule.startTime
+            let startDate = new Date(baseDate);
+            let [startHour, startMinutes] = scheduleStartTime.split(':').map(Number);
+            startDate.setHours(startHour);
+            startDate.setMinutes(startMinutes);
+            startDate.setMinutes(0)
+
+            let endTime = schedule.endTime
+            let endDate = new Date(baseDate);
+            let [endHour, endMinutes] = endTime.split(':').map(Number);
+            endDate.setHours(endHour);
+            endDate.setMinutes(endMinutes);
+            endDate.setSeconds(0)
+
+            return (targetStartDate >= startDate &&  targetStartDate <= endDate) 
+            ||     (targetEndDate >= startDate && targetEndDate <= endDate)
+          });
+
+        console.log('Existing Schedules:', existingSchedules);
+        return existingSchedules;
       } catch (error) {
         console.error('Error checking schedule overlap:', error);
         return false;
@@ -457,7 +522,10 @@ export default {
       checkSchedule,
       handleCourseSelect,
       handleTimeRangeSelect,
-      filteredLessons
+      filteredLessons,
+      selectedStartTime,
+      selectedEndTime,
+      selectClassroom
     };
   }
 };
