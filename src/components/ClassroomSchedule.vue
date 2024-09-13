@@ -84,7 +84,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="course in filteredCourses" :key="course.id">
+              <tr v-for="course in filteredLessons" :key="course.id">
                 <td class="py-2 px-4 border-b text-center truncate">{{ course.clubName }}</td>
                 <td class="py-2 px-4 border-b text-center truncate">{{ course.name }}</td>
               </tr>
@@ -96,37 +96,40 @@
 
     <!-- 新增排課模態框 -->
     <div v-if="showAddScheduleModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
-      <div class="bg-white p-4 rounded shadow-lg">
-        <h2 class="text-xl font-bold mb-4">新增排課</h2>
-        <form @submit.prevent="checkSchedule">
-          <div class="mb-4">
-            <label class="block mb-2" for="courseSelect">選擇課程</label>
-            <SearchableDropdown
-              :courses="courses"
-              @select="handleCourseSelect"
-            />
-          </div>
-          <div class="mb-4">
-            <label class="block mb-2" for="dayOfWeek">選擇星期</label>
-            <select v-model="selectedDay" id="dayOfWeek" class="p-2 border rounded w-full">
-              <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
-            </select>
-          </div>
-          <div class="mb-4">
-            <label class="block mb-2">選擇時間</label>
-            <TimeRangePicker @select-time-range="handleTimeRangeSelect" />
-          </div>
-          <div class="flex justify-end space-x-2">
-            <button type="button" @click="showAddScheduleModal = false" class="p-2 border rounded bg-gray-200">
-              取消
-            </button>
-            <button type="submit" class="p-2 border rounded bg-blue-500 text-white">
-              確定
-            </button>
-          </div>
-        </form>
-      </div>
+    <div class="bg-white p-6 rounded shadow-lg max-w-lg w-full">
+      <h2 class="text-xl font-bold mb-4">新增排課</h2>
+      
+      <form @submit.prevent="checkSchedule" novalidate>
+        <div class="mb-4">
+          <label class="block mb-2" for="courseSelect">選擇課程</label>
+          <SearchableDropdown :courses="courses" @select="handleCourseSelect" />
+        </div>
+        <div class="mb-4">
+          <label class="block mb-2" for="dayOfWeek">選擇星期</label>
+          <select v-model="selectedDay" id="dayOfWeek" class="p-2 border rounded w-full" required>
+            <option value="" disabled>請選擇</option>
+            <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block mb-2">選擇課程開始時間</label>
+          <TimePicker v-model="selectedTime" format="HH:mm:ss" />
+        </div>
+        <div class="mb-4">
+          <label class="block mb-2">選擇課程結束時間</label>
+          <TimePicker v-model="selectedTime" format="HH:mm:ss" />
+        </div>
+        <div class="flex justify-end space-x-2">
+          <button type="button" @click="showAddScheduleModal = false" class="p-2 border rounded bg-gray-200">
+            取消
+          </button>
+          <button type="submit" class="p-2 border rounded bg-blue-500 text-white">
+            確定
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
 
     <!-- 新增課程模態框 -->
     <div v-if="showAddCourseModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
@@ -175,15 +178,17 @@
   </div>
 </template>
 
-
-
 <script>
 import { ref, onMounted, computed, watch } from 'vue';
 import SearchableDropdown from './SearchableDropdown.vue';
+import TimePicker from 'vue3-timepicker';
+import 'vue3-timepicker/dist/VueTimepicker.css'
+
 export default {
   name: 'ClassroomSchedule',
   components: {
     SearchableDropdown,
+    TimePicker
   },
   setup() {
     const scheduleData = ref([]);
@@ -203,8 +208,8 @@ export default {
     const endTime = ref('');
     const courses = ref([]); // Initialize with course data
     const searchTerm = ref('');
-    const isDropdownOpen = ref(false);
- 
+    const apiUrl = `${process.env.VUE_APP_API_URL}`;
+
     // 获取课程数据
     const fetchCourses = async () => {
       try {
@@ -222,17 +227,6 @@ export default {
       );
     });
 
-    // 选择课程
-    const selectCourse = (course) => {
-      selectedCourse.value = course;
-      searchTerm.value = '';
-      isDropdownOpen.value = false;
-    };
-
-    // 关闭下拉菜单
-    const closeDropdown = () => {
-      setTimeout(() => isDropdownOpen.value = false, 200);
-    };
 
     // 组件挂载时获取课程数据
     onMounted(fetchCourses);
@@ -241,7 +235,6 @@ export default {
       showDeleteConfirmDialog.value = true;
     };
 
-    const apiUrl = `${process.env.VUE_APP_API_URL}`;
     const checkSchedule = async () => {
       const isOverlapping = await checkTimeOverlap();
       if (isOverlapping) {
@@ -252,40 +245,7 @@ export default {
       } else {
         addSchedule();
       }
-    };
-
-    const checkTimeOverlap = async () => {
-      try {
-        const response = await fetch(`${apiUrl}/classRoomSchedule?dayOfWeek=${selectedDay.value}&startTime=${startTime.value}&endTime=${endTime.value}`);
-        const existingSchedules = await response.json();
-        return existingSchedules.length > 0;
-      } catch (error) {
-        console.error('Error checking schedule overlap:', error);
-        return false;
-      }
-    };
-
-    const addSchedule = async () => {
-      try {
-        const scheduleData = {
-          dayOfWeek: selectedDay.value,
-          startTime: startTime.value,
-          endTime: endTime.value,
-          classRoomId: 41, // Set the class room ID
-          lessonId: selectedCourse.value
-        };
-        await fetch(`${apiUrl}/classRoomSchedule`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(scheduleData)
-        });
-        showAddScheduleModal.value = false;
-        // Refresh data or handle success
-      } catch (error) {
-        console.error('Error adding schedule:', error);
-      }
+      
     };
 
     const deleteCourse = async () => {
@@ -300,6 +260,51 @@ export default {
       }
     };
 
+    const checkTimeOverlap = async () => {
+      try {
+        console.log(scheduleData.value)
+        const response = await fetch(`${apiUrl}/classRoomSchedule?dayOfWeek=${selectedDay.value}&startTime=${startTime.value}&endTime=${endTime.value}`);
+        const existingSchedules = await response.json();
+        return existingSchedules.length > 0;
+      } catch (error) {
+        console.error('Error checking schedule overlap:', error);
+        return false;
+      }
+    };
+
+
+
+    const addSchedule = async () => {
+      try {
+        const scheduleData = {
+          dayOfWeek: selectedDay.value,
+          startTime: startTime.value,
+          endTime: endTime.value,
+          classRoomId: 41, // 設置教室 ID
+          lessonId: selectedCourse.value
+        };
+        await fetch(`${apiUrl}/classRoomSchedule`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(scheduleData)
+        });
+        showAddScheduleModal.value = false;
+        fetchData(); // 重新獲取數據以更新視圖
+      } catch (error) {
+        console.error('Error adding schedule:', error);
+      }
+    };
+
+    const handleCourseSelect = (course) => {
+      selectedCourse.value = course.id;
+    };
+
+    const handleTimeRangeSelect = ({ startTime: start, endTime: end }) => {
+      startTime.value = start;
+      endTime.value = end;
+    };
     const clubColors = {
       '桌球隊': '#FFADAD',
       '課後活動': '#CAFFBF',
@@ -421,9 +426,6 @@ export default {
       }
     };
 
-    const handleCourseSelect = (course) => {
-    selectedCourse.value = course.id;
-  };
 
     const uniqueClubs = computed(() =>
       [...new Set(scheduleData.value.map(item => item.clubName))]
@@ -453,10 +455,9 @@ export default {
       endTime,
       courses,
       checkSchedule,
-      selectCourse,
-      closeDropdown,
-      filteredLessons,
-      handleCourseSelect
+      handleCourseSelect,
+      handleTimeRangeSelect,
+      filteredLessons
     };
   }
 };
