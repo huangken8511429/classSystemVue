@@ -215,22 +215,23 @@ export default {
     ]);
     const filterText = ref('');
     const selectedClub = ref(null);
-    const currentView = ref('schedule'); // 控制當前視圖
+    const currentView = ref('schedule');
     const showAddCourseModal = ref(false);
     const newCourse = ref('');
     const showDeleteConfirmDialog = ref(false);
     const courseToDelete = ref({ id: null, name: '' });
     const showAddScheduleModal = ref(false);
-    const selectedCourse = ref('');
     const selectedDay = ref('');
     const startTime = ref('');
     const endTime = ref('');
-    const courses = ref([]); // Initialize with course data
+    const courses = ref([]);
     const searchTerm = ref('');
-    const apiUrl = `${process.env.VUE_APP_API_URL}`;
+    const apiUrl = process.env.VUE_APP_API_URL;
     const selectedStartTime = ref('');
     const selectedEndTime = ref('');
     const selectClassroom = ref('');
+    const selectedCourse = ref(null); 
+
 
     const fetchCourses = async () => {
       try {
@@ -241,14 +242,18 @@ export default {
       }
     };
 
+    const handleCourseSelect = (course) => {
+      selectedCourse.value = course;
+      console.log("Selected course:", selectedCourse.value); // 用於調試
+    };
     const filteredLessons = computed(() => {
       return courses.value.filter(course =>
         course.name.toLowerCase().includes(searchTerm.value.toLowerCase())
       );
     });
 
-
     onMounted(fetchCourses);
+
     const confirmDelete = (id, name) => {
       courseToDelete.value = { id, name };
       showDeleteConfirmDialog.value = true;
@@ -257,7 +262,6 @@ export default {
     const checkSchedule = async () => {
       const existingSchedules = await getExistingSchedules();
       if (existingSchedules.length > 0) {
-        // 列出所有重疊課程的時間
         let targetDay = daysMap.get(selectedDay.value)
         const scheduleDetails = existingSchedules
           .map(schedule => `${schedule[targetDay.toLowerCase()]} ${schedule.startTime} - ${schedule.endTime}`)
@@ -276,11 +280,11 @@ export default {
 
     const deleteCourse = async () => {
       try {
-        await fetch(`${apiUrl}/${courseToDelete.value.id}`, {
+        await fetch(`${apiUrl}/classroomSchedule/${courseToDelete.value.id}`, {
           method: 'DELETE'
         });
         showDeleteConfirmDialog.value = false;
-        fetchData(); // Refresh the data after deletion
+        fetchData();
       } catch (error) {
         console.error('Error deleting course:', error);
       }
@@ -289,41 +293,32 @@ export default {
     const getExistingSchedules = async () => {
       try {
         let targetDay = daysMap.get(selectedDay.value)
-        // 过滤出不为 null 的排程
         let existingSchedules = scheduleData.value
-          .filter(schedule => {
-            return schedule[targetDay.toLowerCase()] != null
-          })
-          .filter(schedule => {
-            return schedule.classRoomName === selectClassroom.value
-          })
+          .filter(schedule => schedule[targetDay.toLowerCase()] != null)
+          .filter(schedule => schedule.classRoomName === selectClassroom.value)
           .filter(schedule => {
             let baseDate = new Date(1970, 0, 1);
             let targetStartDate = new Date(baseDate);
             let [hours, minutes] = selectedStartTime.value.split(':').map(Number);
             targetStartDate.setHours(hours);
             targetStartDate.setMinutes(minutes);
-            targetStartDate.setMinutes(0)
 
             let targetEndDate = new Date(baseDate);
             let [targetEndHours, targetEndMinutes] = selectedEndTime.value.split(':').map(Number);
             targetEndDate.setHours(targetEndHours);
             targetEndDate.setMinutes(targetEndMinutes);
-            targetEndDate.setMinutes(0)
 
             let scheduleStartTime = schedule.startTime
             let startDate = new Date(baseDate);
             let [startHour, startMinutes] = scheduleStartTime.split(':').map(Number);
             startDate.setHours(startHour);
             startDate.setMinutes(startMinutes);
-            startDate.setMinutes(0)
 
             let endTime = schedule.endTime
             let endDate = new Date(baseDate);
             let [endHour, endMinutes] = endTime.split(':').map(Number);
             endDate.setHours(endHour);
             endDate.setMinutes(endMinutes);
-            endDate.setSeconds(0)
 
             return (targetStartDate >= startDate &&  targetStartDate <= endDate) 
             ||     (targetEndDate >= startDate && targetEndDate <= endDate)
@@ -337,16 +332,15 @@ export default {
       }
     };
 
-
-
     const addSchedule = async () => {
+      console.log(selectClassroom.value)
       try {
         const scheduleData = {
-          dayOfWeek: selectedDay.value,
-          startTime: startTime.value,
-          endTime: endTime.value,
-          classRoomId: 41, // 設置教室 ID
-          lessonId: selectedCourse.value
+          dayOfWeek: daysMap.get(selectedDay.value).toUpperCase(),
+          startTime: `${selectedStartTime.value}:00`,
+          endTime: `${selectedEndTime.value}:00`,
+          classRoomName: selectClassroom.value,
+          lessonId: selectedCourse.value.id  // 使用課程名稱
         };
         await fetch(`${apiUrl}/classRoomSchedule`, {
           method: 'POST',
@@ -356,20 +350,13 @@ export default {
           body: JSON.stringify(scheduleData)
         });
         showAddScheduleModal.value = false;
-        fetchData(); // 重新獲取數據以更新視圖
+        fetchData();
       } catch (error) {
         console.error('Error adding schedule:', error);
+        fetchData();
       }
     };
 
-    const handleCourseSelect = (course) => {
-      selectedCourse.value = course.id;
-    };
-
-    const handleTimeRangeSelect = ({ startTime: start, endTime: end }) => {
-      startTime.value = start;
-      endTime.value = end;
-    };
     const clubColors = {
       '桌球隊': '#FFADAD',
       '課後活動': '#CAFFBF',
@@ -383,7 +370,7 @@ export default {
 
     const fetchData = async () => {
       try {
-        const response = await fetch(apiUrl + '/classrooms');
+        const response = await fetch(`${apiUrl}/classrooms`);
         scheduleData.value = await response.json();
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -392,7 +379,7 @@ export default {
 
     const fetchCourseData = async () => {
       try {
-        const response = await fetch(apiUrl + '/lessons');
+        const response = await fetch(`${apiUrl}/lessons`);
         courseData.value = await response.json();
       } catch (error) {
         console.error('Error Fetching data:', error)
@@ -401,7 +388,6 @@ export default {
 
     onMounted(fetchData);
 
-    // Call fetchCourses when switching to 'courses' view
     watch(currentView, (newView) => {
       if (newView === 'courses') {
         fetchCourseData();
@@ -412,7 +398,6 @@ export default {
       [...new Set(scheduleData.value.map(item => item.classRoomName))]
     );
 
-
     const filteredCourses = computed(() => {
       return courseData.value.filter(course => {
         const matchesClub = selectedClub.value === null || course.clubName === selectedClub.value;
@@ -421,7 +406,6 @@ export default {
       });
     });
 
-    // 新增：計算唯一課程
     const uniqueCourses = computed(() => {
       const courses = new Set();
       days.forEach(day => {
@@ -461,10 +445,7 @@ export default {
         .filter(item => item.courseName && item.courseName.includes(filterText.value));
     };
 
-
     const addCourse = async () => {
-      console.log(newCourse.value)
-      console.log(selectedClub.value)
       if (!newCourse.value || !selectedClub.value) {
         console.error('Course name and Club ID are required');
         return;
@@ -472,10 +453,10 @@ export default {
 
       try {
         const newCourseForJson = {
-          clubName: selectedClub.value, // 使用選取的 clubId
+          clubName: selectedClub.value,
           name: newCourse.value
         };
-        await fetch('http://localhost:8091/lesson', {
+        await fetch(`${apiUrl}/lesson`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -483,14 +464,13 @@ export default {
           body: JSON.stringify(newCourseForJson)
         });
         newCourse.value = '';
-        selectedClub.value = ''; // 清空選取的社團
+        selectedClub.value = '';
         showAddCourseModal.value = false;
-        fetchCourseData(); // 重新擷取課程資料
+        fetchCourseData();
       } catch (error) {
         console.error('Error adding course:', error);
       }
     };
-
 
     const uniqueClubs = computed(() =>
       [...new Set(scheduleData.value.map(item => item.clubName))]
@@ -514,18 +494,16 @@ export default {
       showAddCourseModal,
       newCourse,
       showAddScheduleModal,
-      selectedCourse,
       selectedDay,
       startTime,
       endTime,
       courses,
       checkSchedule,
-      handleCourseSelect,
-      handleTimeRangeSelect,
       filteredLessons,
       selectedStartTime,
       selectedEndTime,
-      selectClassroom
+      selectClassroom,
+      handleCourseSelect
     };
   }
 };

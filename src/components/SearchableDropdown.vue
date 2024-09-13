@@ -29,11 +29,14 @@ export default {
             required: true
         }
     },
-    setup(props) {
+    emits: ['select'],
+    setup(props, { emit }) {
         const searchTerm = ref('');
         const isOpen = ref(false);
         const dropdownRef = ref(null);
-
+        const selectCourse = (course) => {
+            emit('select', course);  // 發出整個課程對象
+        };
         const filteredCourses = computed(() => {
             return props.courses.filter(course =>
                 course.name.toLowerCase().includes(searchTerm.value.toLowerCase())
@@ -41,8 +44,9 @@ export default {
         });
 
         const handleSelect = (course) => {
-            searchTerm.value = course.name; // Optionally clear the search term
+            searchTerm.value = course.name;
             isOpen.value = false;
+            emit('select', course); // 發出 select 事件，並傳遞整個 course 對象
         };
 
         const handleClickOutside = (event) => {
@@ -64,7 +68,8 @@ export default {
             isOpen,
             filteredCourses,
             handleSelect,
-            dropdownRef
+            dropdownRef,
+            selectCourse
         };
     }
 };
