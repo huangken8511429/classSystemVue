@@ -1,82 +1,90 @@
 <template>
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4">教室排課表</h1>
+    <h1 class="text-5xl font-bold mb-6 justify-center">教室排課表</h1>
 
-    <div class="flex">
-      <div class="w-1/6 flex flex-col space-y-2">
-        <button @click="currentView = 'schedule'"
-          :class="['w-32 p-2 border rounded', currentView === 'schedule' ? 'bg-blue-500 text-white' : 'bg-gray-200']">
-          排課區
-        </button>
-        <button @click="currentView = 'courses'"
-          :class="['w-32 p-2 border rounded', currentView === 'courses' ? 'bg-blue-500 text-white' : 'bg-gray-200']">
-          課程區
-        </button>
+
+    <div class="flex flex-col md:flex-row">
+      <div class="w-full md:w-1/6 mb-4 md:mb-0">
+        <!-- Moved club filter to the top left -->
+        <div class="club-filter-container mb-4">
+          <ClubFilter :clubs="uniqueClubs" :modelValue="selectedClub" @update:modelValue="updateSelectedClub" />
+        </div>
+
+        <div class="flex md:flex-col space-x-2 md:space-x-0 md:space-y-2">
+          <button @click="currentView = 'schedule'" :class="['w-full p-3 border rounded transition-colors duration-200 club-button',
+            currentView === 'schedule' ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300']">
+            排課區
+          </button>
+          <button @click="currentView = 'courses'" :class="['w-full p-3 border rounded transition-colors duration-200 club-button',
+            currentView === 'courses' ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300']">
+            課程區
+          </button>
+        </div>
       </div>
 
-      <div class="w-5/6 flex flex-col">
-        <div class="flex justify-between items-center mb-4">
-          <div></div>
-          <button v-if="currentView === 'schedule'" @click="showAddScheduleModal = true"
-            class="p-2 border rounded bg-green-500 text-white">
-            新增排課
-          </button>
-        </div>
-
-        <div class="flex justify-between items-center mb-4">
-          <div></div>
-          <button v-if="currentView === 'courses'" @click="showAddCourseModal = true"
-            class="p-2 border rounded bg-green-500 text-white">
-            新增課程
-          </button>
-        </div>
-
-        <div class="mb-4">
-          <div class="flex space-x-2">
-            <button @click="selectedClub = null"
-              :class="['p-2 border rounded', selectedClub === null ? 'bg-blue-500 text-white' : 'bg-gray-200']">
-              全部
+      <div class="w-full md:w-5/6 md:pl-6">
+        <div class="flex justify-between mb-4">
+          <div class="w-1/2">
+            <input v-model="filterText" placeholder="搜尋已排課課程"
+              class="p-3 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <button v-if="currentView === 'schedule'" @click="showAddScheduleModal = true"
+              class="p-3 border rounded bg-green-500 text-white hover:bg-green-600 transition-colors duration-200 club-button">
+              新增排課
             </button>
-            <button v-for="club in uniqueClubs" :key="club" @click="selectedClub = club"
-              :class="['p-2 border rounded', selectedClub === club ? 'bg-blue-500 text-white' : 'bg-gray-200']">
-              {{ club }}
+            <button v-if="currentView === 'courses'" @click="showAddCourseModal = true"
+              class="p-3 border rounded bg-green-500 text-white hover:bg-green-600 transition-colors duration-200 club-button">
+              新增課程
             </button>
           </div>
         </div>
 
-        <div class="mb-4">
-          <input v-model="filterText" placeholder="搜尋課程" class="p-2 border rounded" />
-        </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto bg-white shadow-md rounded-lg">
           <!-- 排課區視圖 -->
-          <table class="min-w-full bg-white border border-gray-300" v-if="currentView === 'schedule'">
-            <thead>
-              <tr>
-                <th class="py-2 px-4 border-b">教室名稱</th>
-                <th v-for="day in days" :key="day" class="py-2 px-4 border-b">{{ day }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="classroom in uniqueClassrooms" :key="classroom">
-                <td class="py-2 px-4 border-b font-medium">{{ classroom }}</td>
-                <td v-for="day in days" :key="day" class="py-2 px-4 border-b">
-                  <div v-for="classInfo in getFilteredClassesForDay(classroom, day)" :key="classInfo.startTime"
-                    class="mb-1 text-center relative group" :style="{ backgroundColor: classInfo.color }">
-                    <div class="font-medium">{{ classInfo.courseName }}</div>
-                    <div class="text-sm">({{ classInfo.startTime }} - {{ classInfo.endTime }})</div>
-                    <button @click="confirmDelete(classInfo.id, classInfo.courseName)"
-                      class="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      X
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="overflow-x-auto shadow-lg rounded-lg" v-if="currentView === 'schedule'">
+            <table class="min-w-full bg-white">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th
+                    class="sticky left-0 z-10 bg-gray-100 py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    教室名稱
+                  </th>
+                  <th v-for="day in days" :key="day"
+                    class="py-3 px-4 border-b text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    {{ day }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <tr v-for="classroom in uniqueClassrooms" :key="classroom" class="hover:bg-gray-50">
+                  <td class="sticky left-0 z-10 bg-white py-4 px-4 border-b font-medium text-gray-900">
+                    {{ classroom }}
+                  </td>
+                  <td v-for="day in days" :key="day" class="py-4 px-4 border-b">
+                    <div v-for="classInfo in getFilteredClassesForDay(classroom, day)" :key="classInfo.startTime"
+                      class="mb-2 p-2 rounded-lg shadow-sm relative group transition-all duration-300 ease-in-out hover:shadow-md"
+                      :style="{ backgroundColor: classInfo.color + '85' }"> <!-- 添加33作為透明度 -->
+                      <div class="font-medium text-gray-800">{{ classInfo.courseName }}</div>
+                      <div class="text-sm text-gray-600">{{ classInfo.startTime }} - {{ classInfo.endTime }}</div>
+                      <button @click="confirmDelete(classInfo.id, classInfo.courseName)"
+                        class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                          stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <!-- 課程區視圖 -->
-          <table class="min-w-full bg-white border border-gray-300" v-else>
+          <table class="min-w-full" v-else>
             <thead>
               <tr>
                 <th class="py-2 px-4 border-b text-center">社團名稱</th>
@@ -97,46 +105,57 @@
     <!-- 新增排課模態框 -->
     <div v-if="showAddScheduleModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
       <div class="bg-white p-6 rounded shadow-lg max-w-lg w-full">
-        <h2 class="text-xl font-bold mb-4">新增排課</h2>
-
-        <form @submit.prevent="checkSchedule" novalidate>
-          <div class="mb-4">
-            <label class="block mb-2" for="courseSelect">選擇課程</label>
-            <SearchableDropdown :courses="courses" @select="handleCourseSelect" />
+        <h2 class="text-2xl font-bold mb-6 text-center">新增排課</h2>
+        <form @submit.prevent="checkSchedule" novalidate class="space-y-4">
+          <!-- 統一樣式容器 -->
+          <div>
+            <label class="block text-sm font-medium mb-2" for="courseSelect">選擇課程</label>
+            <SearchableDropdown :courses="courses" @select="handleCourseSelect" class="w-full" />
           </div>
-          <div class="mb-4">
-            <label class="block mb-2" for="classrooms">選擇教室</label>
-            <select v-model="selectClassroom" id="classrooms" class="p-2 border rounded w-full" required>
+          <div>
+            <label class="block text-sm font-medium mb-2" for="classrooms">選擇教室</label>
+            <select v-model="selectClassroom" id="classrooms"
+              class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required>
               <option value="" disabled>請選擇</option>
-              <option v-for="classroom in uniqueClassrooms" :key="classroom" :value="classroom">{{ classroom }}</option>
+              <option v-for="classroom in uniqueClassrooms" :key="classroom" :value="classroom">
+                {{ classroom }}
+              </option>
             </select>
           </div>
-          <div class="mb-4">
-            <label class="block mb-2" for="dayOfWeek">選擇星期</label>
-            <select v-model="selectedDay" id="dayOfWeek" class="p-2 border rounded w-full" required>
+          <div>
+            <label class="block text-sm font-medium mb-2" for="dayOfWeek">選擇星期</label>
+            <select v-model="selectedDay" id="dayOfWeek"
+              class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required>
               <option value="" disabled>請選擇</option>
               <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
             </select>
           </div>
-          <div class="mb-4">
-            <label class="block mb-2">選擇課程開始時間</label>
-            <TimePicker v-model="selectedStartTime" format="HH:mm" />
+          <div class="flex space-x-4">
+            <div class="w-1/2">
+              <label class="block text-sm font-medium mb-2">課程開始時間</label>
+              <TimePicker v-model="selectedStartTime" format="HH:mm" />
+            </div>
+            <div class="w-1/2">
+              <label class="block text-sm font-medium mb-2">課程結束時間</label>
+              <TimePicker v-model="selectedEndTime" format="HH:mm" />
+            </div>
           </div>
-          <div class="mb-4">
-            <label class="block mb-2">選擇課程結束時間</label>
-            <TimePicker v-model="selectedEndTime" format="HH:mm" />
-          </div>
-          <div class="flex justify-end space-x-2">
-            <button type="button" @click="showAddScheduleModal = false" class="p-2 border rounded bg-gray-200">
+
+          <!-- 操作按鈕 -->
+          <div class="flex justify-end space-x-2 mt-6">
+            <button type="button" @click="showAddScheduleModal = false"
+              class="p-3 border rounded bg-gray-200 hover:bg-gray-300 transition-colors duration-200">
               取消
             </button>
-            <button type="submit" class="p-2 border rounded bg-blue-500 text-white">
+            <button type="submit"
+              class="p-3 border rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200">
               確定
             </button>
           </div>
         </form>
       </div>
     </div>
+
 
     <!-- 新增課程模態框 -->
     <div v-if="showAddCourseModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
@@ -192,14 +211,17 @@
 <script>
 import { ref, onMounted, computed, watch } from 'vue';
 import SearchableDropdown from './SearchableDropdown.vue';
+import ClubFilter from './ClubFilter.vue';
 import TimePicker from 'vue3-timepicker';
+
 import 'vue3-timepicker/dist/VueTimepicker.css'
 
 export default {
   name: 'ClassroomSchedule',
   components: {
     SearchableDropdown,
-    TimePicker
+    TimePicker,
+    ClubFilter
   },
   setup() {
     const scheduleData = ref([]);
@@ -230,7 +252,10 @@ export default {
     const selectedStartTime = ref('');
     const selectedEndTime = ref('');
     const selectClassroom = ref('');
-    const selectedCourse = ref(null); 
+    const selectedCourse = ref(null);
+    const updateSelectedClub = (newValue) => {
+      selectedClub.value = newValue
+    }
 
 
     const fetchCourses = async () => {
@@ -320,8 +345,8 @@ export default {
             endDate.setHours(endHour);
             endDate.setMinutes(endMinutes);
 
-            return (targetStartDate >= startDate &&  targetStartDate <= endDate) 
-            ||     (targetEndDate >= startDate && targetEndDate <= endDate)
+            return (targetStartDate >= startDate && targetStartDate <= endDate)
+              || (targetEndDate >= startDate && targetEndDate <= endDate)
           });
 
         console.log('Existing Schedules:', existingSchedules);
@@ -503,41 +528,118 @@ export default {
       selectedStartTime,
       selectedEndTime,
       selectClassroom,
-      handleCourseSelect
+      handleCourseSelect,
+      updateSelectedClub
     };
   }
 };
 </script>
 
 <style scoped>
+.club-button {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.club-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, #3b82f6, #60a5fa);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.club-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.club-button:hover::before {
+  opacity: 0.1;
+}
+
+.club-button.active {
+  background-color: #3b82f6;
+  color: white;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.5);
+}
+
+.club-button.active::before {
+  opacity: 1;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.club-button.active {
+  animation: pulse 1.5s infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .club-filter-container {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Additional styles from your original CSS */
 .container {
   max-width: 100%;
   overflow-x: auto;
 }
 
 table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   width: 100%;
+  padding: 0.75rem 1.5rem;
 }
 
 th,
 td {
   text-align: left;
-  padding: 8px;
-  border: 1px solid #ddd;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
 }
 
 th {
-  background-color: #f2f2f2;
+  background-color: #f8fafc;
   font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
 }
 
 tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: #f9fafb;
 }
 
 tr:hover {
-  background-color: #f5f5f5;
+  background-color: #f1f5f9;
 }
 
 .text-center {
@@ -550,5 +652,23 @@ tr:hover {
 
 .mb-1 {
   margin-bottom: 0.25rem;
+}
+
+/* Custom TimePicker styles */
+::v-deep .vue3-timepicker input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+}
+
+::v-deep .vue3-timepicker input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.group:hover {
+  transform: translateY(-2px);
 }
 </style>
