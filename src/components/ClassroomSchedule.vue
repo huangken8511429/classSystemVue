@@ -2,7 +2,6 @@
   <div class="container mx-auto p-4">
     <h1 class="text-5xl font-bold mb-6 justify-center">教室排課表</h1>
 
-
     <div class="flex flex-col md:flex-row">
       <div class="w-full md:w-1/6 mb-4 md:mb-0">
         <!-- Moved club filter to the top left -->
@@ -40,7 +39,6 @@
           </div>
         </div>
 
-
         <div class="overflow-x-auto bg-white shadow-md rounded-lg">
           <!-- 排課區視圖 -->
           <div class="overflow-x-auto shadow-lg rounded-lg" v-if="currentView === 'schedule'">
@@ -63,20 +61,30 @@
                     {{ classroom }}
                   </td>
                   <td v-for="day in days" :key="day" class="py-4 px-4 border-b">
-                    <div v-for="classInfo in getFilteredClassesForDay(classroom, day)" :key="classInfo.startTime"
-                      class="mb-2 p-2 rounded-lg shadow-sm relative group transition-all duration-300 ease-in-out hover:shadow-md"
-                      :style="{ backgroundColor: classInfo.color + '85' }"> <!-- 添加33作為透明度 -->
-                      <div class="font-medium text-gray-800">{{ classInfo.courseName }}</div>
-                      <div class="text-sm text-gray-600">{{ classInfo.startTime }} - {{ classInfo.endTime }}</div>
-                      <button @click="confirmDelete(classInfo.id, classInfo.courseName)"
-                        class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                          stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+                    <draggable 
+                      :list="getFilteredClassesForDay(classroom, day)" 
+                      :group="{ name: 'courses', pull: 'clone', put: true }"
+                      item-key="id"
+                      @change="handleDragChange($event, classroom, day)"
+                    >
+                      <template #item="{ element }">
+                        <div 
+                          class="mb-2 p-2 rounded-lg shadow-sm relative group transition-all duration-300 ease-in-out hover:shadow-md"
+                          :style="{ backgroundColor: element.color + '85' }"
+                        >
+                          <div class="course-name" >{{ element.courseName }}</div>
+                          <div class="course-time">{{ element.startTime }} - {{ element.endTime }}</div>
+                          <button @click="confirmDelete(element.id, element.courseName)"
+                            class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                              stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </template>
+                    </draggable>
                   </td>
                 </tr>
               </tbody>
@@ -156,7 +164,6 @@
       </div>
     </div>
 
-
     <!-- 新增課程模態框 -->
     <div v-if="showAddCourseModal" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
       <div class="bg-white p-4 rounded shadow-lg">
@@ -209,10 +216,12 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch} from 'vue';
 import SearchableDropdown from './SearchableDropdown.vue';
 import ClubFilter from './ClubFilter.vue';
 import TimePicker from 'vue3-timepicker';
+import draggable from 'vuedraggable'
+
 
 import 'vue3-timepicker/dist/VueTimepicker.css'
 
@@ -221,7 +230,8 @@ export default {
   components: {
     SearchableDropdown,
     TimePicker,
-    ClubFilter
+    ClubFilter,
+    draggable
   },
   setup() {
     const scheduleData = ref([]);
@@ -536,6 +546,9 @@ export default {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
 .club-button {
   padding: 0.75rem;
   border: 1px solid #e2e8f0;
@@ -671,4 +684,34 @@ tr:hover {
 .group:hover {
   transform: translateY(-2px);
 }
+
+.course-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  transition: all 0.3s ease;
+}
+
+.course-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.course-name {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #2d3748;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.course-time {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: #4a5568;
+}
+
 </style>
